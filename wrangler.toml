@@ -2,7 +2,3 @@ name = "cf-sub"
 main = "src/worker.js"
 
 assets = { directory = "public" }
-
-kv_namespaces = [
-  { binding = "SUB_STORE", id = "", preview_id = "" }
-]
