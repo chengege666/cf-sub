@@ -27,6 +27,7 @@
       <span class="badge"><i class="dot dot-cyan"></i>VLESS</span>
       <span class="badge"><i class="dot dot-purple"></i>Trojan</span>
     </div>
+    <p class="badge-hint" style="margin-top:8px;font-size:12px;color:rgba(255,255,255,.55);letter-spacing:.5px">※ 只支持 WebSocket + TLS (ws+tls) 传输方式</p>
   </header>
 
   <main class="layout">
@@ -80,6 +81,10 @@
             <input id="keepOriginalHost" type="checkbox" checked />
             <span>保留原始 Host / SNI（替换 IP 但不改握手域名）</span>
           </label>
+        </div>
+        <div class="setting-row">
+          <label for="customPort">统一端口（可选）</label>
+          <input id="customPort" type="text" class="input-text" placeholder="留空使用原节点 / 优选IP端口，例如: 443 / 8443 / 2053" />
         </div>
         <div class="setting-row setting-checkbox">
           <label for="useLocalToken">

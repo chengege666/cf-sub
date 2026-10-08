@@ -9,6 +9,7 @@
     ipMeta: $('ipMeta'),
     namePrefix: $('namePrefix'),
     keepOriginalHost: $('keepOriginalHost'),
+    customPort: $('customPort'),
     useLocalToken: $('useLocalToken'),
     tokenRow: $('tokenRow'),
     accessToken: $('accessToken'),
@@ -87,9 +88,17 @@
         ta.value = text;
         ta.setAttribute('readonly', '');
         ta.style.position = 'fixed';
-        ta.style.top = '-9999px';
-        ta.style.opacity = '0';
+        ta.style.top = '0';
+        ta.style.left = '-9999px';
+        ta.style.width = '1px';
+        ta.style.height = '1px';
+        ta.style.padding = '0';
+        ta.style.border = 'none';
+        ta.style.outline = 'none';
+        ta.style.boxShadow = 'none';
+        ta.style.background = 'transparent';
         document.body.appendChild(ta);
+        ta.focus();
         ta.select();
         ta.setSelectionRange(0, ta.value.length);
         const ok = document.execCommand('copy');
@@ -196,12 +205,14 @@
     if (els.btnCopyAllLinks) {
       els.btnCopyAllLinks.addEventListener('click', () => {
         const lines = [];
-        if (els.linkAuto && els.linkAuto.value) lines.push('Auto  : ' + els.linkAuto.value);
-        if (els.linkRaw && els.linkRaw.value) lines.push('Raw   : ' + els.linkRaw.value);
-        if (els.linkClash && els.linkClash.value) lines.push('Clash : ' + els.linkClash.value);
-        if (els.linkSurge && els.linkSurge.value) lines.push('Surge : ' + els.linkSurge.value);
+        if (els.linkAuto && els.linkAuto.value) lines.push(els.linkAuto.value);
+        if (els.linkRaw && els.linkRaw.value) lines.push(els.linkRaw.value);
+        if (els.linkClash && els.linkClash.value) lines.push(els.linkClash.value);
+        if (els.linkSurge && els.linkSurge.value) lines.push(els.linkSurge.value);
         if (!lines.length) { toast('还没有链接'); return; }
-        copyText(lines.join('\n')).then(() => toast('全部链接已复制 ✅')).catch(() => toast('复制失败'));
+        const combined = lines.join('\n');
+        if (!combined.trim()) { toast('链接内容为空'); return; }
+        copyText(combined).then(() => toast('全部链接已复制 ✅')).catch(() => toast('复制失败'));
       });
     }
   }
@@ -308,6 +319,7 @@
 
     const namePrefix = els.namePrefix ? els.namePrefix.value.trim() : '';
     const keepOriginalHost = !(els.keepOriginalHost && els.keepOriginalHost.checked === false);
+    const customPort = els.customPort ? els.customPort.value.trim() : '';
     const useToken = els.useLocalToken && els.useLocalToken.checked;
     const localToken = useToken ? (els.accessToken ? els.accessToken.value.trim() : '') : '';
 
@@ -322,7 +334,7 @@
       const resp = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nodeLinks, preferredIps, namePrefix, keepOriginalHost }),
+        body: JSON.stringify({ nodeLinks, preferredIps, namePrefix, keepOriginalHost, customPort }),
       });
       data = await resp.json();
       if (!resp.ok || !data.ok) throw new Error(data.error || ('HTTP ' + resp.status));

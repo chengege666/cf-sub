@@ -61,10 +61,11 @@ async function handleGenerate(request, env) {
   const preferredIps = (body.preferredIps || '').toString();
   const namePrefix = (body.namePrefix || '').toString();
   const keepOriginalHost = body.keepOriginalHost !== false;
+  const customPort = (body.customPort || '').toString();
 
   if (!nodeLinks.trim()) return jsonResponse({ ok: false, error: 'nodeLinks is required' }, 400);
 
-  const inputKey = { nodeLinks, preferredIps, namePrefix, keepOriginalHost };
+  const inputKey = { nodeLinks, preferredIps, namePrefix, keepOriginalHost, customPort };
   const cacheKey = 'cache:' + hashKey(inputKey);
 
   const store = env.SUB_STORE;
@@ -136,7 +137,7 @@ async function handleSub(params, request, env) {
   }
 
   const target = url.searchParams.get('target') || 'raw';
-  const result = processAndRender({ ...inputKey, target });
+  const result = processAndRender({ ...inputKey, customPort: inputKey.customPort || '', target });
 
   const disposition = target === 'clash'
     ? `attachment; filename="clash_${id}.yaml"`
@@ -172,6 +173,7 @@ async function handleRawSub(request, env) {
     preferredIps: body.preferredIps || '',
     namePrefix: body.namePrefix || '',
     keepOriginalHost: body.keepOriginalHost !== false,
+    customPort: (body.customPort || '').toString(),
     target,
   });
   return new Response(result.text, {

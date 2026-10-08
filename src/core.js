@@ -206,12 +206,16 @@ function parsePreferredIps(text) {
 
 // ---------- 生成替换后的节点 ----------
 function applyPreferredIp(node, ip, opts = {}) {
-  const { keepOriginalHost = true, namePrefix = '' } = opts;
+  const { keepOriginalHost = true, namePrefix = '', customPort = '' } = opts;
   const clone = JSON.parse(JSON.stringify(node));
 
   // 替换 address
   clone.address = ip.host;
-  if (ip.port) clone.port = String(ip.port);
+  if (customPort) {
+    clone.port = String(customPort);
+  } else if (ip.port) {
+    clone.port = String(ip.port);
+  }
 
   // 处理 SNI / Host
   if (!keepOriginalHost) {
@@ -229,10 +233,18 @@ function applyPreferredIp(node, ip, opts = {}) {
 }
 
 function generateNodes(nodeLinksText, preferredIpsText, opts = {}) {
+  const { customPort = '' } = opts;
   const nodes = parseNodeLinks(nodeLinksText);
   const ips = parsePreferredIps(preferredIpsText);
   const out = [];
   if (!ips.length) {
+    if (customPort) {
+      return nodes.map(n => {
+        const c = JSON.parse(JSON.stringify(n));
+        c.port = String(customPort);
+        return c;
+      });
+    }
     return nodes;
   }
   for (const n of nodes) {
@@ -457,8 +469,8 @@ function renderSurge(nodes) {
 
 // ---------- 主入口 ----------
 export function processAndRender(input) {
-  const { nodeLinks, preferredIps, namePrefix = '', keepOriginalHost = true, target = 'raw' } = input;
-  const nodes = generateNodes(nodeLinks, preferredIps, { namePrefix, keepOriginalHost });
+  const { nodeLinks, preferredIps, namePrefix = '', keepOriginalHost = true, customPort = '', target = 'raw' } = input;
+  const nodes = generateNodes(nodeLinks, preferredIps, { namePrefix, keepOriginalHost, customPort });
   if (target === 'clash') return { nodes, text: renderClash(nodes), contentType: 'text/yaml; charset=utf-8' };
   if (target === 'surge') return { nodes, text: renderSurge(nodes), contentType: 'text/plain; charset=utf-8' };
   return { nodes, text: renderRaw(nodes), contentType: 'text/plain; charset=utf-8' };
