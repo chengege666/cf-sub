@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CF Sub · 优选IP订阅器</title>
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='52' font-size='52'>🛰️</text></svg>" />
+</head>
+<body>
+  <div class="bg-orbs" aria-hidden="true">
+    <span class="orb orb-1"></span>
+    <span class="orb orb-2"></span>
+    <span class="orb orb-3"></span>
+  </div>
+
+  <header class="site-header">
+    <div class="brand">
+      <span class="logo">🛰️</span>
+      <div class="title-wrap">
+        <h1 class="site-title">CF Sub</h1>
+        <p class="site-sub">优选 IP · 订阅生成 · 多客户端导出</p>
+      </div>
+    </div>
+    <div class="badges">
+      <span class="badge"><i class="dot dot-green"></i>VMess</span>
+      <span class="badge"><i class="dot dot-cyan"></i>VLESS</span>
+      <span class="badge"><i class="dot dot-purple"></i>Trojan</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- 左侧：输入区 -->
+    <section class="column column-left">
+      <div class="glass-card card-form">
+        <div class="card-header">
+          <h2><span class="card-icon">📥</span>节点输入</h2>
+          <div class="meta" id="nodeMeta">共 0 个节点</div>
+        </div>
+        <textarea
+          id="nodeLinks"
+          class="text-area"
+          spellcheck="false"
+          rows="10"
+          placeholder="在此粘贴节点链接或 Base64 订阅内容&#10;支持: vmess://  vless://  trojan://&#10;也可直接粘贴 Base64 订阅文本，将自动展开"
+        ></textarea>
+        <div class="row-actions">
+          <button class="btn btn-ghost" id="btnPasteNodes">📋 粘贴</button>
+          <button class="btn btn-ghost" id="btnClearNodes">🗑 清空</button>
+          <button class="btn btn-ghost" id="btnLoadFile">📁 导入文件</button>
+          <input type="file" id="fileInput" accept=".txt,.conf,.yaml,.yml" hidden />
+        </div>
+      </div>
+
+      <div class="glass-card card-form">
+        <div class="card-header">
+          <h2><span class="card-icon">🌐</span>优选 IP / 域名</h2>
+          <div class="meta" id="ipMeta">共 0 条</div>
+        </div>
+        <textarea
+          id="preferredIps"
+          class="text-area"
+          spellcheck="false"
+          rows="8"
+          placeholder="格式: host[:port][#remark]&#10;每行一条，例如:&#10;104.16.1.2#HK&#10;104.17.2.3:2053#US&#10;cf.example.com:8443#Custom"
+        ></textarea>
+        <p class="hint">节点 × 优选地址 = 生成全部组合。留空则只使用原始节点。</p>
+      </div>
+
+      <div class="glass-card card-settings">
+        <div class="card-header">
+          <h2><span class="card-icon">⚙️</span>生成设置</h2>
+        </div>
+        <div class="setting-row">
+          <label for="namePrefix">节点名前缀</label>
+          <input id="namePrefix" type="text" class="input-text" value="CF" placeholder="例如: CF / HK / US" />
+        </div>
+        <div class="setting-row setting-checkbox">
+          <label for="keepOriginalHost">
+            <input id="keepOriginalHost" type="checkbox" checked />
+            <span>保留原始 Host / SNI（替换 IP 但不改握手域名）</span>
+          </label>
+        </div>
+        <div class="setting-row setting-checkbox">
+          <label for="useLocalToken">
+            <input id="useLocalToken" type="checkbox" />
+            <span>附带访问令牌 token</span>
+          </label>
+        </div>
+        <div class="setting-row" id="tokenRow" style="display:none">
+          <label for="accessToken">Token 值</label>
+          <input id="accessToken" type="text" class="input-text" placeholder="SUB_ACCESS_TOKEN" />
+        </div>
+
+        <div class="generate-wrap">
+          <button class="btn btn-primary btn-generate" id="btnGenerate">
+            <span class="btn-label">✨ 生成订阅</span>
+            <span class="btn-spinner" aria-hidden="true"></span>
+          </button>
+          <p class="generate-tip" id="generateTip">数据仅用于 Worker 生成短链，保存 7 天后自动失效</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 右侧：结果区 -->
+    <section class="column column-right">
+      <div class="glass-card card-result">
+        <div class="card-header">
+          <h2><span class="card-icon">📤</span>订阅结果</h2>
+          <div class="status-pill" id="statusPill">
+            <i class="dot"></i>
+            <span id="statusText">待生成</span>
+          </div>
+        </div>
+
+        <div class="result-empty" id="resultEmpty">
+          <div class="empty-illustration">🔮</div>
+          <p class="empty-title">还没有生成订阅</p>
+          <p class="empty-sub">左侧填入节点和优选 IP，点击「生成订阅」即可</p>
+        </div>
+
+        <div class="result-body" id="resultBody" style="display:none">
+          <div class="short-info">
+            <div class="short-label">短链 ID</div>
+            <div class="short-value" id="shortId">-</div>
+          </div>
+
+          <div class="tabs">
+            <button class="tab active" data-target="tab-auto">通用 Auto</button>
+            <button class="tab" data-target="tab-raw">Raw Base64</button>
+            <button class="tab" data-target="tab-clash">Clash YAML</button>
+            <button class="tab" data-target="tab-surge">Surge</button>
+          </div>
+
+          <!-- Auto -->
+          <div class="tab-panel active" id="tab-auto">
+            <div class="result-row">
+              <label>订阅地址</label>
+              <div class="link-box">
+                <input type="text" id="linkAuto" readonly />
+                <button class="btn btn-copy" data-target="linkAuto">复制</button>
+              </div>
+            </div>
+            <div class="qr-wrap">
+              <div class="qr-label">扫码导入</div>
+              <div class="qr-box" id="qrAuto"></div>
+            </div>
+          </div>
+
+          <!-- Raw -->
+          <div class="tab-panel" id="tab-raw">
+            <div class="result-row">
+              <label>订阅地址</label>
+              <div class="link-box">
+                <input type="text" id="linkRaw" readonly />
+                <button class="btn btn-copy" data-target="linkRaw">复制</button>
+              </div>
+            </div>
+            <div class="qr-wrap">
+              <div class="qr-label">扫码导入</div>
+              <div class="qr-box" id="qrRaw"></div>
+            </div>
+          </div>
+
+          <!-- Clash -->
+          <div class="tab-panel" id="tab-clash">
+            <div class="result-row">
+              <label>订阅地址</label>
+              <div class="link-box">
+                <input type="text" id="linkClash" readonly />
+                <button class="btn btn-copy" data-target="linkClash">复制</button>
+              </div>
+            </div>
+            <div class="qr-wrap">
+              <div class="qr-label">扫码导入</div>
+              <div class="qr-box" id="qrClash"></div>
+            </div>
+          </div>
+
+          <!-- Surge -->
+          <div class="tab-panel" id="tab-surge">
+            <div class="result-row">
+              <label>订阅地址</label>
+              <div class="link-box">
+                <input type="text" id="linkSurge" readonly />
+                <button class="btn btn-copy" data-target="linkSurge">复制</button>
+              </div>
+            </div>
+            <div class="qr-wrap">
+              <div class="qr-label">扫码导入</div>
+              <div class="qr-box" id="qrSurge"></div>
+            </div>
+          </div>
+
+          <div class="result-actions">
+            <button class="btn btn-ghost" id="btnCopyAllLinks">🔗 复制全部链接</button>
+            <button class="btn btn-ghost" id="btnReset">🔁 重新生成</button>
+          </div>
+        </div>
+
+        <div class="alert" id="alertBox" style="display:none"></div>
+      </div>
+
+      <div class="glass-card card-info">
+        <div class="card-header">
+          <h2><span class="card-icon">💡</span>使用说明</h2>
+        </div>
+        <ul class="info-list">
+          <li>节点粘贴后自动检测数量，Base64 订阅内容会自动展开</li>
+          <li>优选地址格式：<code>host[:port][#remark]</code>，每行一条</li>
+          <li>相同输入 7 天内返回同一短链，避免重复生成</li>
+          <li>服务端默认不保存明文节点详情，到期后订阅链接失效</li>
+          <li>支持导出：通用 Base64 / Clash / Surge</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>运行于 Cloudflare Worker · 数据存 KV 短链 · 玻璃拟态 UI</p>
+  </footer>
+
+  <div class="toast" id="toast" aria-live="polite"></div>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>
