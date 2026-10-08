@@ -223,11 +223,10 @@ function applyPreferredIp(node, ip, opts = {}) {
     clone.sni = '';
   }
 
-  // 名称前缀
+  // 名称前缀（不再包含优选IP）
   const baseName = clone.name || node.name || node.type;
-  const ipTag = ip.remark || ip.host;
   const prefix = namePrefix ? `${namePrefix}-` : '';
-  clone.name = `${prefix}${ipTag}-${baseName}`;
+  clone.name = `${prefix}${baseName}`;
 
   return clone;
 }
