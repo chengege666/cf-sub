@@ -66,6 +66,12 @@
           placeholder="格式: host[:port][#remark]&#10;每行一条，例如:&#10;104.16.1.2#HK&#10;104.17.2.3:2053#US&#10;cf.example.com:8443#Custom"
         ></textarea>
         <p class="hint">节点 × 优选地址 = 生成全部组合。留空则只使用原始节点。</p>
+        <div class="setting-row setting-checkbox" style="margin-top:10px">
+          <label for="useBuiltinIp">
+            <input id="useBuiltinIp" type="checkbox" />
+            <span>使用内置IP（勾选后无需填写，自动使用内置优选IP）</span>
+          </label>
+        </div>
       </div>
 
       <div class="glass-card card-settings">

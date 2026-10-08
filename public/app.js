@@ -7,6 +7,7 @@
     nodeMeta: $('nodeMeta'),
     preferredIps: $('preferredIps'),
     ipMeta: $('ipMeta'),
+    useBuiltinIp: $('useBuiltinIp'),
     namePrefix: $('namePrefix'),
     keepOriginalHost: $('keepOriginalHost'),
     customPort: $('customPort'),
@@ -44,8 +45,27 @@
     token: 'cfsb.access_token',
     prefix: 'cfsb.name_prefix',
     keepHost: 'cfsb.keep_host',
+    builtinIp: 'cfsb.use_builtin_ip',
     history: 'cfsb.history_v1',
   };
+
+  // 内置优选IP（已去重），每行一条，格式 host[:port][#remark]
+  const BUILTIN_IPS = [
+    '104.18.39.209',
+    '104.18.36.122',
+    '172.64.146.157',
+    '172.64.148.133',
+    '172.64.159.211',
+    '104.18.8.147',
+    '162.159.128.100',
+    '104.19.152.161',
+    '104.17.245.203',
+    '104.17.112.221',
+    '104.16.58.61',
+    '104.26.4.247',
+    '172.67.9.71',
+    '103.172.110.230',
+  ].join('\n');
 
   // ---------- 工具 ----------
   function toast(msg, ms = 1800) {
@@ -271,6 +291,30 @@
 
     els.nodeLinks.addEventListener('input', updateCounts);
     els.preferredIps.addEventListener('input', updateCounts);
+
+    // 内置IP联动：勾选后禁用输入框并填入内置IP，取消勾选恢复手填
+    if (els.useBuiltinIp && els.preferredIps) {
+      let lastManualIps = '';
+      const syncBuiltin = (persist) => {
+        const on = els.useBuiltinIp.checked;
+        if (on) {
+          lastManualIps = els.preferredIps.value;
+          els.preferredIps.value = BUILTIN_IPS;
+          els.preferredIps.disabled = true;
+        } else {
+          els.preferredIps.disabled = false;
+          els.preferredIps.value = lastManualIps;
+        }
+        updateCounts();
+        if (persist) try { localStorage.setItem(LS.builtinIp, on ? '1' : '0'); } catch (e) {}
+      };
+      els.useBuiltinIp.addEventListener('change', () => syncBuiltin(true));
+      // 恢复上次勾选状态
+      try {
+        if (localStorage.getItem(LS.builtinIp) === '1') els.useBuiltinIp.checked = true;
+      } catch (e) {}
+      if (els.useBuiltinIp.checked) syncBuiltin(false);
+    }
 
     if (els.useLocalToken) {
       const sync = () => {
