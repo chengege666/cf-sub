@@ -2,7 +2,6 @@
   "name": "cf-sub",
   "version": "1.0.0",
   "description": "Cloudflare Worker 优选IP订阅器 - 玻璃拟态版",
-  "type": "module",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
