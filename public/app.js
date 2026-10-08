@@ -203,16 +203,21 @@
     });
 
     if (els.btnCopyAllLinks) {
-      els.btnCopyAllLinks.addEventListener('click', () => {
-        const lines = [];
-        if (els.linkAuto && els.linkAuto.value) lines.push(els.linkAuto.value);
-        if (els.linkRaw && els.linkRaw.value) lines.push(els.linkRaw.value);
-        if (els.linkClash && els.linkClash.value) lines.push(els.linkClash.value);
-        if (els.linkSurge && els.linkSurge.value) lines.push(els.linkSurge.value);
-        if (!lines.length) { toast('还没有链接'); return; }
-        const combined = lines.join('\n');
-        if (!combined.trim()) { toast('链接内容为空'); return; }
-        copyText(combined).then(() => toast('全部链接已复制 ✅')).catch(() => toast('复制失败'));
+      els.btnCopyAllLinks.addEventListener('click', async () => {
+        const rawUrl = els.linkRaw && els.linkRaw.value ? els.linkRaw.value : '';
+        if (!rawUrl) { toast('还没有生成链接'); return; }
+        try {
+          const resp = await fetch(rawUrl, { cache: 'no-store' });
+          if (!resp.ok) throw new Error('HTTP ' + resp.status);
+          const txt = await resp.text();
+          // target=raw 返回 Base64，解码为明文节点链接
+          const plain = b64Decode(txt) || txt;
+          if (!plain.trim()) { toast('节点链接为空'); return; }
+          await copyText(plain);
+          toast('全部节点链接已复制 ✅');
+        } catch (e) {
+          toast('复制失败：' + (e.message || '网络错误'));
+        }
       });
     }
   }
