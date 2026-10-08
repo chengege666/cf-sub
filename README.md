@@ -24,21 +24,7 @@
   - 本地保存前缀 / token / 开关（localStorage）
   - Toast 提示 + 状态条
 
-## 项目结构
 
-```
-cf-sub/
-├─ src/
-│  ├─ worker.js      # Worker 入口：/api/generate + /sub/:id + KV 短链
-│  └─ core.js        # 节点解析 / 优选 IP 替换 / 多格式渲染
-├─ public/           # 前端（玻璃拟态 UI，和原项目前端完全不同）
-│  ├─ index.html
-│  ├─ style.css
-│  └─ app.js
-├─ tests/smoke.mjs   # Node 端 smoke test
-├─ wrangler.toml
-└─ package.json
-```
 
 ## 快速开始
 
@@ -60,35 +46,6 @@ cf-sub/
    - 设置后，访问 `/sub/:id` 必须携带 `?token=你的令牌`，否则会被拒绝
 6. 重新部署一次，打开 Worker 分配的域名即可使用
 
-### 方式 B：wrangler CLI 命令行
-
-1. 安装依赖
-   ```bash
-   npm install
-   ```
-2. 首次使用先登录
-   ```bash
-   npx wrangler login
-   ```
-3. 创建 KV 命名空间，复制返回的 ID
-   ```bash
-   npx wrangler kv namespace create SUB_STORE
-   ```
-4. 把 ID 填进 `wrangler.toml` 的 `id` 和 `preview_id`
-5. 本地启动调试（页面 + Worker API 一起跑）
-   ```bash
-   npx wrangler dev
-   ```
-6. 部署到线上
-   ```bash
-   npx wrangler deploy
-   ```
-7. （可选）设置访问令牌机密变量
-   ```bash
-   npx wrangler secret put SUB_ACCESS_TOKEN
-   ```
-
-
 
 ## 环境变量 / Secrets
 
@@ -98,14 +55,7 @@ cf-sub/
 | `SUB_ACCESS_TOKEN` | Secret | 否 | 设置后 `/sub/:id` 和 `/api/raw` 都要带 `?token=` |
 | `SUB_TTL_DAYS` | [vars] | 否 | 短链过期天数，默认 `7` |
 
-## 前端使用说明
 
-1. 左侧粘贴节点或 Base64 订阅文本 → 自动识别节点数
-2. 下方粘贴优选 IP（每行一条）
-3. 设置前缀、是否保留 SNI、是否附带 token
-4. 点 **✨ 生成订阅** → 右侧会出现短链 ID 和 4 个 Tab
-5. 每个 Tab 都提供：订阅地址（可复制） + 二维码（扫码导入）
-6. 左下角「复制全部链接」一次复制 4 个地址
 
 ## 注意事项
 
