@@ -78,23 +78,32 @@
   }
 
   function copyText(text) {
-    if (!text) return Promise.reject('empty');
+    if (!text) return Promise.reject(new Error('empty'));
+
+    // 传统复制兜底：Clipboard API 不可用或被拒绝时使用
+    function legacyCopy() {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.top = '-9999px';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, ta.value.length);
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        return ok ? Promise.resolve() : Promise.reject(new Error('execCommand failed'));
+      } catch (e) {
+        return Promise.reject(e);
+      }
+    }
+
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      return navigator.clipboard.writeText(text);
+      return navigator.clipboard.writeText(text).catch(() => legacyCopy());
     }
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      return Promise.resolve();
-    } catch (e) {
-      return Promise.reject(e);
-    }
+    return legacyCopy();
   }
 
   // ---------- Base64 检测（简易） ----------
