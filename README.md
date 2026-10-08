@@ -42,23 +42,51 @@ cf-sub/
 
 ## 快速开始
 
-### 方式 A：Cloudflare Dashboard + GitHub
+### 方式 A：Cloudflare Dashboard + GitHub 
 
-1. 把本仓库推到你自己的 GitHub
-2. Workers & Pages → **Create → Import a repository**，选这个仓库
-   - Framework preset: None
-   - Build command: 留空
-   - Build output directory: 留空
-3. 进入 **Storage & Databases → KV**，创建 Namespace，建议名 `SUB_STORE`
-4. 回到 Worker → **Settings → Bindings → Add binding**
-   - Type: `KV namespace`
-   - Variable name: `SUB_STORE`
-   - Namespace: 上一步创建的那个
-5. （可选）**Settings → Variables → Secrets** 里添加：
-   - Key: `SUB_ACCESS_TOKEN`
-   - Value: 你自定的令牌
-   - 配置后，访问 `/sub/:id` 必须带 `?token=...`
-6. 重新部署，打开 Worker 域名即可使用
+1. 把本仓库代码推送到你自己的 GitHub 仓库
+2. 打开 Cloudflare Dashboard → **Workers & Pages** → 创建 → **导入代码仓库**，选刚才那个仓库
+   - 框架预设：`无（None）`
+   - 构建命令：留空
+   - 构建输出目录：留空
+3. 到 **存储与数据库 → KV**，创建一个 KV 命名空间，名称建议 `SUB_STORE`
+4. 回到刚才创建的 Worker → **设置 → 绑定 → 添加绑定**
+   - 类型：`KV 命名空间`
+   - 变量名称：必须填 `SUB_STORE`
+   - KV 命名空间：选择上一步创建的那个，保存后重新部署
+5. （可选）**设置 → 变量 → 机密变量（Secrets）** 里添加：
+   - 变量名：`SUB_ACCESS_TOKEN`
+   - 值：自定义的一串令牌
+   - 设置后，访问 `/sub/:id` 必须携带 `?token=你的令牌`，否则会被拒绝
+6. 重新部署一次，打开 Worker 分配的域名即可使用
+
+### 方式 B：wrangler CLI 命令行
+
+1. 安装依赖
+   ```bash
+   npm install
+   ```
+2. 首次使用先登录
+   ```bash
+   npx wrangler login
+   ```
+3. 创建 KV 命名空间，复制返回的 ID
+   ```bash
+   npx wrangler kv namespace create SUB_STORE
+   ```
+4. 把 ID 填进 `wrangler.toml` 的 `id` 和 `preview_id`
+5. 本地启动调试（页面 + Worker API 一起跑）
+   ```bash
+   npx wrangler dev
+   ```
+6. 部署到线上
+   ```bash
+   npx wrangler deploy
+   ```
+7. （可选）设置访问令牌机密变量
+   ```bash
+   npx wrangler secret put SUB_ACCESS_TOKEN
+   ```
 
 
 
