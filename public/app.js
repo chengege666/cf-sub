@@ -82,25 +82,36 @@
 
     // 传统复制兜底：Clipboard API 不可用或被拒绝时使用
     function legacyCopy() {
-      try {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.setAttribute('readonly', '');
-        ta.style.position = 'fixed';
-        ta.style.top = '-9999px';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        ta.setSelectionRange(0, ta.value.length);
-        const ok = document.execCommand('copy');
-        document.body.removeChild(ta);
-        return ok ? Promise.resolve() : Promise.reject(new Error('execCommand failed'));
-      } catch (e) {
-        return Promise.reject(e);
-      }
+      return new Promise((resolve, reject) => {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          // 注意：不要加 readonly，部分浏览器对 readonly 的 execCommand 行为不一致
+          ta.style.position = 'fixed';
+          ta.style.top = '0';
+          ta.style.left = '0';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.focus();
+          ta.select();
+          ta.setSelectionRange(0, ta.value.length);
+          let ok = false;
+          try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+          // 延迟移除，避免某些浏览器异步写入丢内容
+          setTimeout(() => {
+            try { document.body.removeChild(ta); } catch (e) {}
+            if (ok) resolve();
+            else reject(new Error('execCommand failed'));
+          }, 0);
+        } catch (e) {
+          reject(e);
+        }
+      });
     }
 
-    if (navigator.clipboard && navigator.clipboard.writeText) {
+    // 仅在安全上下文（HTTPS 或 localhost）才用 Clipboard API
+    // 否则直接用 legacyCopy，避免某些浏览器 Promise resolve 但实际未写入
+    if (navigator.clipboard && window.isSecureContext && navigator.clipboard.writeText) {
       return navigator.clipboard.writeText(text).catch(() => legacyCopy());
     }
     return legacyCopy();
@@ -256,6 +267,34 @@
     els.nodeLinks.addEventListener('input', updateCounts);
     els.preferredIps.addEventListener('input', updateCounts);
 
+    // 端口快捷按钮：把端口追加到光标所在行（已有端口则替换）
+    document.querySelectorAll('.btn-port').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const port = btn.dataset.port;
+        const ta = els.preferredIps;
+        if (!ta || !port) return;
+        const cursorPos = ta.selectionEnd;
+        const value = ta.value;
+        const before = value.slice(0, cursorPos);
+        const after = value.slice(cursorPos);
+        const lineStart = (before.lastIndexOf('\n') + 1) || 0;
+        const lineEndRel = after.indexOf('\n');
+        const lineEnd = lineEndRel === -1 ? value.length : cursorPos + lineEndRel;
+        const line = value.slice(lineStart, lineEnd);
+        if (!line.trim()) {
+          toast('请先在该行填入 IP / 域名');
+          return;
+        }
+        const newLine = applyPortToLine(line, port);
+        ta.value = value.slice(0, lineStart) + newLine + value.slice(lineEnd);
+        const newCursor = lineStart + newLine.length;
+        ta.focus();
+        ta.setSelectionRange(newCursor, newCursor);
+        updateCounts();
+        toast('已追加端口 ' + port);
+      });
+    });
+
     if (els.useLocalToken) {
       const sync = () => {
         const on = els.useLocalToken.checked;
@@ -275,6 +314,27 @@
     els.keepOriginalHost && els.keepOriginalHost.addEventListener('change', () => {
       try { localStorage.setItem(LS.keepHost, els.keepOriginalHost.checked ? '1' : '0'); } catch (e) {}
     });
+  }
+
+  // 把端口应用到单行：host[:port][#remark] -> host:port[#remark]
+  // 已有端口会被替换；IPv6 [..] 也兼容
+  function applyPortToLine(line, port) {
+    if (!line) return line;
+    const hashIdx = line.lastIndexOf('#');
+    const hostPart = hashIdx >= 0 ? line.slice(0, hashIdx) : line;
+    const remarkPart = hashIdx >= 0 ? line.slice(hashIdx) : '';
+    let baseHost = hostPart;
+    if (hostPart.startsWith('[')) {
+      // IPv6 [..]:port 或 [..]
+      const rb = hostPart.indexOf(']');
+      if (rb >= 0) baseHost = hostPart.slice(0, rb + 1);
+    } else {
+      const ci = hostPart.lastIndexOf(':');
+      if (ci >= 0 && /^\d+$/.test(hostPart.slice(ci + 1))) {
+        baseHost = hostPart.slice(0, ci);
+      }
+    }
+    return baseHost + ':' + port + remarkPart;
   }
 
   function loadSavedPrefs() {

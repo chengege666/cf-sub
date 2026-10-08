@@ -22,10 +22,13 @@
         <p class="site-sub">优选 IP · 订阅生成 · 多客户端导出</p>
       </div>
     </div>
-    <div class="badges">
-      <span class="badge"><i class="dot dot-green"></i>VMess</span>
-      <span class="badge"><i class="dot dot-cyan"></i>VLESS</span>
-      <span class="badge"><i class="dot dot-purple"></i>Trojan</span>
+    <div class="badges-wrap">
+      <div class="badges">
+        <span class="badge"><i class="dot dot-green"></i>VMess</span>
+        <span class="badge"><i class="dot dot-cyan"></i>VLESS</span>
+        <span class="badge"><i class="dot dot-purple"></i>Trojan</span>
+      </div>
+      <p class="badge-hint">仅支持 <code>ws + tls</code> 节点</p>
     </div>
   </header>
 
@@ -64,7 +67,16 @@
           rows="8"
           placeholder="格式: host[:port][#remark]&#10;每行一条，例如:&#10;104.16.1.2#HK&#10;104.17.2.3:2053#US&#10;cf.example.com:8443#Custom"
         ></textarea>
-        <p class="hint">节点 × 优选地址 = 生成全部组合。留空则只使用原始节点。</p>
+        <div class="row-actions port-row">
+          <span class="port-label">追加端口</span>
+          <button type="button" class="btn btn-port" data-port="443">443</button>
+          <button type="button" class="btn btn-port" data-port="2053">2053</button>
+          <button type="button" class="btn btn-port" data-port="2083">2083</button>
+          <button type="button" class="btn btn-port" data-port="2087">2087</button>
+          <button type="button" class="btn btn-port" data-port="2096">2096</button>
+          <button type="button" class="btn btn-port" data-port="8443">8443</button>
+        </div>
+        <p class="hint">节点 × 优选地址 = 生成全部组合。留空则只使用原始节点。点端口按钮追加到光标所在行。</p>
       </div>
 
       <div class="glass-card card-settings">
