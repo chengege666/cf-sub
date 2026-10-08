@@ -1,4 +1,5 @@
 name = "cf-sub"
 main = "src/worker.js"
+compatibility_date = "2026-10-08"
 
 assets = { directory = "public" }
