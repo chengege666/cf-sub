@@ -49,6 +49,9 @@
     history: 'cfsb.history_v1',
   };
 
+  // 最近一次成功生成时的输入快照，短链不可用时供 /api/raw 降级使用
+  let lastGenInput = null;
+
   // 内置优选IP（已去重），每行一条，格式 host[:port][#remark]
   const BUILTIN_IPS = [
     '104.18.39.209',
@@ -235,8 +238,36 @@
           if (!plain.trim()) { toast('节点链接为空'); return; }
           await copyText(plain);
           toast('全部节点链接已复制 ✅');
-        } catch (e) {
-          toast('复制失败：' + (e.message || '网络错误'));
+        } catch (shortErr) {
+          // 短链不可用（如未绑定 KV）时，降级为实时渲染接口
+          if (!lastGenInput) {
+            toast('复制失败：' + (shortErr.message || '网络错误'));
+            return;
+          }
+          try {
+            const fallbackUrl = '/api/raw' + (lastGenInput.localToken
+              ? '?token=' + encodeURIComponent(lastGenInput.localToken)
+              : '');
+            const fbResp = await fetch(fallbackUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                nodeLinks: lastGenInput.nodeLinks,
+                preferredIps: lastGenInput.preferredIps,
+                namePrefix: lastGenInput.namePrefix,
+                keepOriginalHost: lastGenInput.keepOriginalHost,
+                customPort: lastGenInput.customPort,
+              }),
+            });
+            if (!fbResp.ok) throw new Error('HTTP ' + fbResp.status);
+            const fbTxt = await fbResp.text();
+            const fbPlain = b64Decode(fbTxt) || fbTxt;
+            if (!fbPlain.trim()) { toast('节点链接为空'); return; }
+            await copyText(fbPlain);
+            toast('短链不可用，已实时生成并复制 ✅');
+          } catch (e) {
+            toast('复制失败：' + (e.message || '网络错误'));
+          }
         }
       });
     }
@@ -371,6 +402,9 @@
     const customPort = els.customPort ? els.customPort.value.trim() : '';
     const useToken = els.useLocalToken && els.useLocalToken.checked;
     const localToken = useToken ? (els.accessToken ? els.accessToken.value.trim() : '') : '';
+
+    // 保存本次生成的输入快照，供“复制全部链接”在短链失败时降级使用
+    lastGenInput = { nodeLinks, preferredIps, namePrefix, keepOriginalHost, customPort, localToken };
 
     alertBox(null, null);
     setStatus('info', '生成中…');
