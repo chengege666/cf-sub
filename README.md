@@ -1,8 +1,7 @@
 # CF Sub · 优选 IP 订阅器
 
 轻量化的 Cloudflare Worker 优选 IP 订阅生成器。
-后端逻辑与 [cloudflaresub](https://github.com/InfiCheesy/cloudflaresub) 同源（节点解析 + KV 短链 + 多格式导出），
-前端采用完全重写的 **玻璃拟态 UI**（左右分栏 + 毛玻璃卡片 + 渐变光晕 + Tab 切换 + 二维码）。
+
 
 ## 功能特性
 
