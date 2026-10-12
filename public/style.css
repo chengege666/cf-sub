@@ -348,22 +348,6 @@ body {
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.18);
 }
 
-select.input-text {
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%23cbd5e1' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
-  padding-right: 38px;
-  cursor: pointer;
-}
-
-select.input-text option {
-  background: #1e293b;
-  color: #f8fafc;
-}
-
 .generate-wrap {
   margin-top: 16px;
 }

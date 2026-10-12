@@ -9,7 +9,6 @@
     ipMeta: $('ipMeta'),
     useBuiltinIp: $('useBuiltinIp'),
     namePrefix: $('namePrefix'),
-    flagSelect: $('flagSelect'),
     keepOriginalHost: $('keepOriginalHost'),
     customPort: $('customPort'),
     useLocalToken: $('useLocalToken'),
@@ -45,7 +44,6 @@
   const LS = {
     token: 'cfsb.access_token',
     prefix: 'cfsb.name_prefix',
-    flag: 'cfsb.flag',
     keepHost: 'cfsb.keep_host',
     builtinIp: 'cfsb.use_builtin_ip',
     history: 'cfsb.history_v1',
@@ -365,9 +363,6 @@
     els.namePrefix && els.namePrefix.addEventListener('input', () => {
       try { localStorage.setItem(LS.prefix, els.namePrefix.value); } catch (e) {}
     });
-    els.flagSelect && els.flagSelect.addEventListener('change', () => {
-      try { localStorage.setItem(LS.flag, els.flagSelect.value); } catch (e) {}
-    });
     els.keepOriginalHost && els.keepOriginalHost.addEventListener('change', () => {
       try { localStorage.setItem(LS.keepHost, els.keepOriginalHost.checked ? '1' : '0'); } catch (e) {}
     });
@@ -382,8 +377,6 @@
       }
       const pf = localStorage.getItem(LS.prefix);
       if (pf !== null && els.namePrefix) els.namePrefix.value = pf;
-      const fg = localStorage.getItem(LS.flag);
-      if (fg !== null && els.flagSelect) els.flagSelect.value = fg;
       const kh = localStorage.getItem(LS.keepHost);
       if (kh !== null && els.keepOriginalHost) els.keepOriginalHost.checked = kh !== '0';
       if (els.useLocalToken) {
@@ -405,16 +398,13 @@
     }
 
     const namePrefix = els.namePrefix ? els.namePrefix.value.trim() : '';
-    const flag = els.flagSelect ? els.flagSelect.value : '';
-    // 国旗拼接到前缀最前面，例如 🇺🇸 + CF = 🇺🇸CF
-    const finalPrefix = (flag || '') + namePrefix;
     const keepOriginalHost = !(els.keepOriginalHost && els.keepOriginalHost.checked === false);
     const customPort = els.customPort ? els.customPort.value.trim() : '';
     const useToken = els.useLocalToken && els.useLocalToken.checked;
     const localToken = useToken ? (els.accessToken ? els.accessToken.value.trim() : '') : '';
 
     // 保存本次生成的输入快照，供“复制全部链接”在短链失败时降级使用
-    lastGenInput = { nodeLinks, preferredIps, namePrefix: finalPrefix, keepOriginalHost, customPort, localToken };
+    lastGenInput = { nodeLinks, preferredIps, namePrefix, keepOriginalHost, customPort, localToken };
 
     alertBox(null, null);
     setStatus('info', '生成中…');
@@ -427,7 +417,7 @@
       const resp = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nodeLinks, preferredIps, namePrefix: finalPrefix, keepOriginalHost, customPort }),
+        body: JSON.stringify({ nodeLinks, preferredIps, namePrefix, keepOriginalHost, customPort }),
       });
       data = await resp.json();
       if (!resp.ok || !data.ok) throw new Error(data.error || ('HTTP ' + resp.status));
