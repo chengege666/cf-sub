@@ -1,8 +1,7 @@
 services:
   cf-sub:
     # 从 Docker Hub 拉取（由 GitHub Actions 自动构建推送）
-    # 把 your-dockerhub-username 换成你自己的 Docker Hub 用户名
-    image: your-dockerhub-username/cf-sub:latest
+    image: 609906658/cf-sub:latest
     container_name: cf-sub
     ports:
       # 左边是宿主机端口，可自行修改（如 8080:8787）
