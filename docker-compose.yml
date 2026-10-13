@@ -1,0 +1,15 @@
+services:
+  cf-sub:
+    # 从 Docker Hub 拉取（由 GitHub Actions 自动构建推送）
+    # 把 your-dockerhub-username 换成你自己的 Docker Hub 用户名
+    image: your-dockerhub-username/cf-sub:latest
+    container_name: cf-sub
+    ports:
+      # 左边是宿主机端口，可自行修改（如 8080:8787）
+      - "8787:8787"
+    environment:
+      # 可选：留空/删除则不启用令牌保护；设置后访问 /api/raw 需带 ?token=值
+      - SUB_ACCESS_TOKEN=
+      # 可选：短链过期天数；未绑定 KV 时不生效
+      - SUB_TTL_DAYS=7
+    restart: unless-stopped
