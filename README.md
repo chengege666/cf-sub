@@ -3,6 +3,17 @@
 轻量化的 Cloudflare Worker 优选 IP 订阅生成器。
 
 
+
+## 一键部署
+
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/chengege666/cf-sub)
+
+点击按钮 → 登录 Cloudflare → 授权 GitHub → 自动 Fork 仓库并部署 Worker。
+
+> 注意：按钮部署不会自动创建 KV，部署完成后仍需按下方「快速开始」的第 3~4 步绑定 KV（`SUB_STORE`），否则短链功能不可用。
+
+
+
 ## 功能特性
 
 - 协议：`vmess://` / `vless://` / `trojan://`
