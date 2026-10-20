@@ -56,6 +56,23 @@
    - 设置后，访问 `/sub/:id` 必须携带 `?token=你的令牌`，否则会被拒绝
 6. 重新部署一次，打开 Worker 分配的域名即可使用
 
+### 方式 B：Cloudflare Pages（Continue with GitHub）
+
+与方式 A 二选一即可，代码零改动（Pages 高级模式由 `public/_worker.js` 驱动）。
+
+1. 打开 Cloudflare Dashboard → **Workers & Pages** → 创建 → **Pages** → **Connect to Git**（Continue with GitHub），授权并选择你的仓库
+2. 构建配置（**只在第一次创建时填写，之后 push 自动部署，无需再填**）：
+   - 框架预设：`无（None）`
+   - 构建命令：留空
+   - 构建输出目录：必须填 `public`（`_worker.js` 必须位于输出目录根部，高级模式才会生效）
+3. 绑定 KV：项目 **设置 → 函数 → KV 命名空间绑定**，添加：
+   - 变量名称：必须填 `SUB_STORE`
+   - KV 命名空间：选择已创建的命名空间（注意绑定到**生产环境**）
+4. （可选）**设置 → 环境变量** 里添加 `SUB_ACCESS_TOKEN`、`SUB_TTL_DAYS`（同样注意生产环境）
+5. 部署完成后验证：打开 `https://<项目名>.pages.dev/` 应显示前端页面；`/health` 应返回 `{"ok":true,...}`
+
+> 维护提醒：`public/_worker.js` 是自包含生成文件（内联了 `src/core.js`）。若修改了 `src/worker.js` 或 `src/core.js`，需同步重新生成 `public/_worker.js` 并推送，否则 Pages 跑的仍是旧逻辑。
+
 
 ## 环境变量 / Secrets
 
