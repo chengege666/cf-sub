@@ -685,10 +685,15 @@ export default {
     const subMatch = path.match(/^\/sub\/([A-Za-z0-9_-]+)$/);
     if (subMatch) return handleSub({ id: subMatch[1] }, request, env);
 
-    // 首页静态资源由 Workers Assets 自动处理
-    // 兜底返回健康信息
+    // 首页：优先由 Pages 静态资产(index.html)提供服务，失败再回退到提示页
     if (path === '/' || path === '') {
-      // Assets 绑定会自动处理，但如果没有绑定 Assets 的话返回简单页
+      if (env.ASSETS) {
+        try {
+          return await env.ASSETS.fetch(request);
+        } catch (e) {
+          // 取资产失败，回退到简单提示页
+        }
+      }
       const html = `<!doctype html><html><head><meta charset="utf-8"><title>CF Sub</title></head><body><h1>CF Sub Worker OK</h1><p>请将 public 目录绑定为 Assets，或访问 /api/generate</p></body></html>`;
       return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
     }
@@ -697,6 +702,15 @@ export default {
       return jsonResponse({ ok: true, time: Date.now() });
     }
 
+    // 其余路径：尝试静态资产(app.js/style.css 等)，未命中再返回 404
+    if (env.ASSETS) {
+      try {
+        const assetRes = await env.ASSETS.fetch(request);
+        if (assetRes && assetRes.status !== 404) return assetRes;
+      } catch (e) {
+        // 忽略，走 404
+      }
+    }
     return new Response('Not Found', { status: 404 });
   },
 };
