@@ -131,6 +131,9 @@ function parseStandardLink(link, proto) {
 
   const security = q('security');
   const tls = (security === 'tls' || security === 'reality') ? security : '';
+  const transport = q('type') || 'tcp';
+  // XHTTP 基于 HTTP/2，未显式指定 alpn 时补 h2
+  const alpn = q('alpn') || (transport === 'xhttp' ? 'h2' : '');
 
   return {
     type: proto,
@@ -142,7 +145,7 @@ function parseStandardLink(link, proto) {
     port: String(port || 443),
     cipher: q('encryption') || 'none',
     cipher_suite: q('encryption') || 'none',
-    transport: q('type') || 'tcp',
+    transport: transport,
     path: q('path') || q('serviceName') || '',
     host: q('host') || q('authority') || '',
     tls: tls,
@@ -150,7 +153,7 @@ function parseStandardLink(link, proto) {
     fp: q('fp') || q('clientFingerprint') || '',
     pbk: q('pbk') || '',
     sid: q('sid') || '',
-    alpn: q('alpn') || '',
+    alpn: alpn,
     mode: q('mode') || '',
     extra: q('extra') || '',
     raw: link,
