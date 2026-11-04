@@ -63,7 +63,9 @@ test('raw 输出非空且为 base64 风格', raw.text.length > 20 && /^[A-Za-z0-
 
 const clash = processAndRender({ nodeLinks, preferredIps, target: 'clash' });
 test('clash 包含 proxies 字段', clash.text.includes('proxies:') && clash.text.includes('proxy-groups:'));
-test('clash 节点数量正确', (clash.text.match(/^\s+\-\s+name:\s/gm) || []).length === 6);
+// 只统计 proxies 段内的节点，排除 proxy-groups 中 "- name: PROXY" 的干扰
+const proxiesSection = clash.text.slice(clash.text.indexOf('proxies:'), clash.text.indexOf('proxy-groups:'));
+test('clash 节点数量正确', (proxiesSection.match(/^\s+\-\s+name:\s/gm) || []).length === 6);
 
 const surge = processAndRender({ nodeLinks, preferredIps, target: 'surge' });
 test('surge 包含 [Proxy]', surge.text.includes('[Proxy]') && surge.text.includes('FINAL,Proxy'));

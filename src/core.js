@@ -150,6 +150,8 @@ function parseStandardLink(link, proto) {
     pbk: q('pbk') || '',
     sid: q('sid') || '',
     alpn: q('alpn') || '',
+    mode: q('mode') || '',
+    extra: q('extra') || '',
     raw: link,
   };
 }
@@ -292,6 +294,8 @@ function nodeToLink(node) {
     if (node.fp) query.set('fp', node.fp);
     if (node.pbk) query.set('pbk', node.pbk);
     if (node.sid) query.set('sid', node.sid);
+    if (node.mode) query.set('mode', node.mode);
+    if (node.extra) query.set('extra', node.extra);
     let addr = node.address;
     if (addr.includes(':')) addr = `[${addr}]`;
     return `vless://${encodeURIComponent(node.uuid)}@${addr}:${node.port}?${query.toString()}#${encodeURIComponent(node.name)}`;
@@ -377,6 +381,24 @@ function clashNode(node, idx) {
       if (hosts.length) {
         lines.push(`      host: [${hosts.map(h => yamlEscape(h)).join(', ')}]`);
       }
+    }
+  } else if (net === 'xhttp') {
+    lines.push(`    network: xhttp`);
+    const xhttpOpts = [];
+    if (node.path) xhttpOpts.push(`      path: ${yamlEscape(node.path)}`);
+    if (node.host) xhttpOpts.push(`      host: ${yamlEscape(node.host)}`);
+    if (node.mode) xhttpOpts.push(`      mode: ${yamlEscape(node.mode)}`);
+    if (node.extra) {
+      try {
+        // extra 为 JSON 字符串，以 YAML flow 风格原样嵌入
+        xhttpOpts.push(`      extra: ${JSON.stringify(JSON.parse(node.extra))}`);
+      } catch (e) {
+        // extra 非合法 JSON 时忽略
+      }
+    }
+    if (xhttpOpts.length) {
+      lines.push(`    xhttp-opts:`);
+      lines.push(...xhttpOpts);
     }
   }
   // Reality
