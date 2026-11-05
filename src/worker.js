@@ -49,6 +49,65 @@ function checkToken(env, url) {
   return false;
 }
 
+// ---------- WARP 自动注册 ----------
+// 通过 Cloudflare 非官方接口注册免费 WARP 账号，结果存 KV 长期复用
+// 注册失败（接口变更/限流）时降级为不附带 WARP 节点，不影响其余订阅
+function bytesToB64(bytes) {
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+
+async function registerWarp() {
+  const pair = await crypto.subtle.generateKey({ name: 'X25519', namedCurve: 'X25519' }, true, ['deriveBits']);
+  const pubB64 = bytesToB64(new Uint8Array(await crypto.subtle.exportKey('raw', pair.publicKey)));
+  const resp = await fetch('https://api.cloudflareclient.com/v0a2139/reg', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': 'okhttp/3.5',
+    },
+    body: JSON.stringify({
+      key: pubB64,
+      sid: '',
+      connections: { dtls: null },
+      fpm: {},
+    }),
+  });
+  if (!resp.ok) throw new Error('WARP register HTTP ' + resp.status);
+  const data = await resp.json();
+  if (!data || !data.private_key || !data.peer || !data.peer.public_key) {
+    throw new Error('WARP register bad response');
+  }
+  return data;
+}
+
+async function getWarpAccount(env) {
+  const store = env.SUB_STORE;
+  if (store) {
+    try {
+      const raw = await store.get('warp:account');
+      if (raw) return JSON.parse(raw);
+    } catch (e) {
+      // 读取失败继续尝试重新注册
+    }
+  }
+  let account = null;
+  try {
+    account = await registerWarp();
+  } catch (e) {
+    return null;
+  }
+  if (store && account) {
+    try {
+      await store.put('warp:account', JSON.stringify(account));
+    } catch (e) {
+      // 写入失败不影响本次返回
+    }
+  }
+  return account;
+}
+
 async function handleGenerate(request, env) {
   if (request.method !== 'POST') return jsonResponse({ ok: false, error: 'Method not allowed' }, 405);
   let body;
@@ -62,10 +121,11 @@ async function handleGenerate(request, env) {
   const namePrefix = (body.namePrefix || '').toString();
   const keepOriginalHost = body.keepOriginalHost !== false;
   const customPort = (body.customPort || '').toString();
+  const useWarp = body.useWarp === true;
 
   if (!nodeLinks.trim()) return jsonResponse({ ok: false, error: 'nodeLinks is required' }, 400);
 
-  const inputKey = { nodeLinks, preferredIps, namePrefix, keepOriginalHost, customPort };
+  const inputKey = { nodeLinks, preferredIps, namePrefix, keepOriginalHost, customPort, useWarp };
   const cacheKey = 'cache:' + hashKey(inputKey);
 
   const store = env.SUB_STORE;
@@ -137,7 +197,12 @@ async function handleSub(params, request, env) {
   }
 
   const target = url.searchParams.get('target') || 'raw';
-  const result = processAndRender({ ...inputKey, customPort: inputKey.customPort || '', target });
+  // WARP 仅在 Clash 导出时生效，其余 target 不触发注册
+  let warpAccount = null;
+  if (inputKey.useWarp && target === 'clash') {
+    warpAccount = await getWarpAccount(env);
+  }
+  const result = processAndRender({ ...inputKey, customPort: inputKey.customPort || '', target, warpAccount });
 
   const disposition = target === 'clash'
     ? `attachment; filename="clash_${id}.yaml"`
@@ -168,6 +233,10 @@ async function handleRawSub(request, env) {
     return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
   const target = url.searchParams.get('target') || 'raw';
+  let warpAccount = null;
+  if (body.useWarp === true && target === 'clash') {
+    warpAccount = await getWarpAccount(env);
+  }
   const result = processAndRender({
     nodeLinks: body.nodeLinks || '',
     preferredIps: body.preferredIps || '',
@@ -175,6 +244,7 @@ async function handleRawSub(request, env) {
     keepOriginalHost: body.keepOriginalHost !== false,
     customPort: (body.customPort || '').toString(),
     target,
+    warpAccount,
   });
   return new Response(result.text, {
     status: 200,
