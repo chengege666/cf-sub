@@ -229,10 +229,11 @@ function applyPreferredIp(node, ip, opts = {}) {
     clone.sni = '';
   }
 
-  // 名称前缀（不再包含优选IP）
+  // 名称前缀 + 优选标识（remark 优先，回退 host，保证不同 IP 不同名）
   const baseName = clone.name || node.name || node.type;
   const prefix = namePrefix ? `${namePrefix}-` : '';
-  clone.name = `${prefix}${baseName}`;
+  const ipTag = ip.remark || ip.host || '';
+  clone.name = ipTag ? `${prefix}${baseName}-${ipTag}` : `${prefix}${baseName}`;
 
   return clone;
 }
@@ -466,6 +467,18 @@ function clashNode(node, idx) {
 }
 
 function renderClash(nodes) {
+  // 代理名去重兜底：重名时追加 -2/-3 后缀，避免 Clash 校验报 duplicate name
+  const used = new Set();
+  for (const n of nodes) {
+    let name = n.name;
+    if (used.has(name)) {
+      let k = 2;
+      while (used.has(`${name}-${k}`)) k++;
+      name = `${name}-${k}`;
+    }
+    used.add(name);
+    n.name = name;
+  }
   const out = [];
   out.push(`mixed-port: 7890`);
   out.push(`external-controller: 127.0.0.1:9090`);
