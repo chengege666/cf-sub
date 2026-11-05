@@ -11,7 +11,6 @@
     namePrefix: $('namePrefix'),
     keepOriginalHost: $('keepOriginalHost'),
     customPort: $('customPort'),
-    useWarp: $('useWarp'),
     useLocalToken: $('useLocalToken'),
     tokenRow: $('tokenRow'),
     accessToken: $('accessToken'),
@@ -47,7 +46,6 @@
     prefix: 'cfsb.name_prefix',
     keepHost: 'cfsb.keep_host',
     builtinIp: 'cfsb.use_builtin_ip',
-    warp: 'cfsb.use_warp',
     history: 'cfsb.history_v1',
   };
 
@@ -265,7 +263,6 @@
                 namePrefix: lastGenInput.namePrefix,
                 keepOriginalHost: lastGenInput.keepOriginalHost,
                 customPort: lastGenInput.customPort,
-                useWarp: lastGenInput.useWarp,
               }),
             });
             if (!fbResp.ok) throw new Error('HTTP ' + fbResp.status);
@@ -375,9 +372,6 @@
     els.keepOriginalHost && els.keepOriginalHost.addEventListener('change', () => {
       try { localStorage.setItem(LS.keepHost, els.keepOriginalHost.checked ? '1' : '0'); } catch (e) {}
     });
-    els.useWarp && els.useWarp.addEventListener('change', () => {
-      try { localStorage.setItem(LS.warp, els.useWarp.checked ? '1' : '0'); } catch (e) {}
-    });
   }
 
   function loadSavedPrefs() {
@@ -391,8 +385,6 @@
       if (pf !== null && els.namePrefix) els.namePrefix.value = pf;
       const kh = localStorage.getItem(LS.keepHost);
       if (kh !== null && els.keepOriginalHost) els.keepOriginalHost.checked = kh !== '0';
-      const wp = localStorage.getItem(LS.warp);
-      if (wp !== null && els.useWarp) els.useWarp.checked = wp === '1';
       if (els.useLocalToken) {
         els.tokenRow.style.display = els.useLocalToken.checked ? '' : 'none';
       }
@@ -414,12 +406,11 @@
     const namePrefix = els.namePrefix ? els.namePrefix.value.trim() : '';
     const keepOriginalHost = !(els.keepOriginalHost && els.keepOriginalHost.checked === false);
     const customPort = els.customPort ? els.customPort.value.trim() : '';
-    const useWarp = !!(els.useWarp && els.useWarp.checked);
     const useToken = els.useLocalToken && els.useLocalToken.checked;
     const localToken = useToken ? (els.accessToken ? els.accessToken.value.trim() : '') : '';
 
     // 保存本次生成的输入快照，供“复制全部链接”在短链失败时降级使用
-    lastGenInput = { nodeLinks, preferredIps, namePrefix, keepOriginalHost, customPort, useWarp, localToken };
+    lastGenInput = { nodeLinks, preferredIps, namePrefix, keepOriginalHost, customPort, localToken };
 
     alertBox(null, null);
     setStatus('info', '生成中…');
@@ -432,7 +423,7 @@
       const resp = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nodeLinks, preferredIps, namePrefix, keepOriginalHost, customPort, useWarp }),
+        body: JSON.stringify({ nodeLinks, preferredIps, namePrefix, keepOriginalHost, customPort }),
       });
       data = await resp.json();
       if (!resp.ok || !data.ok) throw new Error(data.error || ('HTTP ' + resp.status));

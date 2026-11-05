@@ -229,11 +229,10 @@ function applyPreferredIp(node, ip, opts = {}) {
     clone.sni = '';
   }
 
-  // 名称前缀 + 优选标识（remark 优先，回退 host，保证不同 IP 不同名）
+  // 名称前缀（不再包含优选IP）
   const baseName = clone.name || node.name || node.type;
   const prefix = namePrefix ? `${namePrefix}-` : '';
-  const ipTag = ip.remark || ip.host || '';
-  clone.name = ipTag ? `${prefix}${baseName}-${ipTag}` : `${prefix}${baseName}`;
+  clone.name = `${prefix}${baseName}`;
 
   return clone;
 }
@@ -261,40 +260,8 @@ function generateNodes(nodeLinksText, preferredIpsText, opts = {}) {
   return out;
 }
 
-// ---------- WARP (WireGuard) 节点 ----------
-// 将 Cloudflare 注册接口返回的账号转换为 wireguard 节点对象（仅 Clash 导出使用）
-function warpToNode(account, opts = {}) {
-  const { namePrefix = '' } = opts;
-  if (!account || !account.private_key || !account.peer || !account.peer.public_key) return null;
-  const ep = account.peer.endpoint || {};
-  const addrs = (account.interface && account.interface.addresses) || [];
-  let ip = '';
-  let ip6 = '';
-  for (const a of addrs) {
-    if (!a) continue;
-    if (a.includes(':')) ip6 = a;
-    else ip = a;
-  }
-  if (!ip && !ip6) return null;
-  const prefix = namePrefix ? `${namePrefix}-` : '';
-  return {
-    type: 'wireguard',
-    protocol: 'wireguard',
-    name: `${prefix}WARP`,
-    address: ep.host || 'engage.cloudflareclient.com',
-    port: String(ep.port || 2408),
-    ip: ip,
-    ip6: ip6,
-    private_key: account.private_key,
-    public_key: account.peer.public_key,
-    allowed_ips: account.allowed_ips || ['0.0.0.0/0', '::/0'],
-    raw: '',
-  };
-}
-
 // ---------- 导出: Raw (Base64) ----------
 function nodeToLink(node) {
-  if (node.protocol === 'wireguard') return ''; // WARP 无通用链接格式，Raw 导出跳过
   if (node.protocol === 'vmess') {
     const obj = {
       v: '2',
@@ -370,21 +337,6 @@ function yamlEscape(s) {
 function clashNode(node, idx) {
   const lines = [];
   const t = node.protocol;
-  // WARP (WireGuard) 走独立字段输出
-  if (t === 'wireguard') {
-    const wg = [];
-    wg.push(`  - name: ${yamlEscape(node.name)}`);
-    wg.push(`    type: wireguard`);
-    wg.push(`    server: ${yamlEscape(node.address)}`);
-    wg.push(`    port: ${node.port}`);
-    if (node.ip) wg.push(`    ip: ${yamlEscape(node.ip)}`);
-    if (node.ip6) wg.push(`    ipv6: ${yamlEscape(node.ip6)}`);
-    wg.push(`    private-key: ${yamlEscape(node.private_key)}`);
-    wg.push(`    public-key: ${yamlEscape(node.public_key)}`);
-    wg.push(`    allowed-ips: "${(node.allowed_ips || []).join(',')}"`);
-    wg.push(`    udp: true`);
-    return wg.join('\n');
-  }
   lines.push(`  - name: ${yamlEscape(node.name)}`);
   lines.push(`    type: ${t === 'vmess' ? 'vmess' : t === 'vless' ? 'vless' : 'trojan'}`);
   lines.push(`    server: ${yamlEscape(node.address)}`);
@@ -467,18 +419,6 @@ function clashNode(node, idx) {
 }
 
 function renderClash(nodes) {
-  // 代理名去重兜底：重名时追加 -2/-3 后缀，避免 Clash 校验报 duplicate name
-  const used = new Set();
-  for (const n of nodes) {
-    let name = n.name;
-    if (used.has(name)) {
-      let k = 2;
-      while (used.has(`${name}-${k}`)) k++;
-      name = `${name}-${k}`;
-    }
-    used.add(name);
-    n.name = name;
-  }
   const out = [];
   out.push(`mixed-port: 7890`);
   out.push(`external-controller: 127.0.0.1:9090`);
@@ -554,13 +494,8 @@ function renderSurge(nodes) {
 
 // ---------- 主入口 ----------
 function processAndRender(input) {
-  const { nodeLinks, preferredIps, namePrefix = '', keepOriginalHost = true, customPort = '', target = 'raw', warpAccount = null } = input;
+  const { nodeLinks, preferredIps, namePrefix = '', keepOriginalHost = true, customPort = '', target = 'raw' } = input;
   const nodes = generateNodes(nodeLinks, preferredIps, { namePrefix, keepOriginalHost, customPort });
-  // 附带 WARP 账号时追加到节点列表末尾（仅 Clash 生效，Raw/Surge 自动跳过）
-  if (warpAccount) {
-    const wn = warpToNode(warpAccount, { namePrefix });
-    if (wn) nodes.push(wn);
-  }
   if (target === 'clash') return { nodes, text: renderClash(nodes), contentType: 'text/yaml; charset=utf-8' };
   if (target === 'surge') return { nodes, text: renderSurge(nodes), contentType: 'text/plain; charset=utf-8' };
   return { nodes, text: renderRaw(nodes), contentType: 'text/plain; charset=utf-8' };
@@ -616,65 +551,6 @@ function checkToken(env, url) {
   return false;
 }
 
-// ---------- WARP 自动注册 ----------
-// 通过 Cloudflare 非官方接口注册免费 WARP 账号，结果存 KV 长期复用
-// 注册失败（接口变更/限流）时降级为不附带 WARP 节点，不影响其余订阅
-function bytesToB64(bytes) {
-  let bin = '';
-  for (const b of bytes) bin += String.fromCharCode(b);
-  return btoa(bin);
-}
-
-async function registerWarp() {
-  const pair = await crypto.subtle.generateKey({ name: 'X25519', namedCurve: 'X25519' }, true, ['deriveBits']);
-  const pubB64 = bytesToB64(new Uint8Array(await crypto.subtle.exportKey('raw', pair.publicKey)));
-  const resp = await fetch('https://api.cloudflareclient.com/v0a2139/reg', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'User-Agent': 'okhttp/3.5',
-    },
-    body: JSON.stringify({
-      key: pubB64,
-      sid: '',
-      connections: { dtls: null },
-      fpm: {},
-    }),
-  });
-  if (!resp.ok) throw new Error('WARP register HTTP ' + resp.status);
-  const data = await resp.json();
-  if (!data || !data.private_key || !data.peer || !data.peer.public_key) {
-    throw new Error('WARP register bad response');
-  }
-  return data;
-}
-
-async function getWarpAccount(env) {
-  const store = env.SUB_STORE;
-  if (store) {
-    try {
-      const raw = await store.get('warp:account');
-      if (raw) return JSON.parse(raw);
-    } catch (e) {
-      // 读取失败继续尝试重新注册
-    }
-  }
-  let account = null;
-  try {
-    account = await registerWarp();
-  } catch (e) {
-    return null;
-  }
-  if (store && account) {
-    try {
-      await store.put('warp:account', JSON.stringify(account));
-    } catch (e) {
-      // 写入失败不影响本次返回
-    }
-  }
-  return account;
-}
-
 async function handleGenerate(request, env) {
   if (request.method !== 'POST') return jsonResponse({ ok: false, error: 'Method not allowed' }, 405);
   let body;
@@ -688,11 +564,10 @@ async function handleGenerate(request, env) {
   const namePrefix = (body.namePrefix || '').toString();
   const keepOriginalHost = body.keepOriginalHost !== false;
   const customPort = (body.customPort || '').toString();
-  const useWarp = body.useWarp === true;
 
   if (!nodeLinks.trim()) return jsonResponse({ ok: false, error: 'nodeLinks is required' }, 400);
 
-  const inputKey = { nodeLinks, preferredIps, namePrefix, keepOriginalHost, customPort, useWarp };
+  const inputKey = { nodeLinks, preferredIps, namePrefix, keepOriginalHost, customPort };
   const cacheKey = 'cache:' + hashKey(inputKey);
 
   const store = env.SUB_STORE;
@@ -764,12 +639,7 @@ async function handleSub(params, request, env) {
   }
 
   const target = url.searchParams.get('target') || 'raw';
-  // WARP 仅在 Clash 导出时生效，其余 target 不触发注册
-  let warpAccount = null;
-  if (inputKey.useWarp && target === 'clash') {
-    warpAccount = await getWarpAccount(env);
-  }
-  const result = processAndRender({ ...inputKey, customPort: inputKey.customPort || '', target, warpAccount });
+  const result = processAndRender({ ...inputKey, customPort: inputKey.customPort || '', target });
 
   const disposition = target === 'clash'
     ? `attachment; filename="clash_${id}.yaml"`
@@ -800,10 +670,6 @@ async function handleRawSub(request, env) {
     return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
   const target = url.searchParams.get('target') || 'raw';
-  let warpAccount = null;
-  if (body.useWarp === true && target === 'clash') {
-    warpAccount = await getWarpAccount(env);
-  }
   const result = processAndRender({
     nodeLinks: body.nodeLinks || '',
     preferredIps: body.preferredIps || '',
@@ -811,7 +677,6 @@ async function handleRawSub(request, env) {
     keepOriginalHost: body.keepOriginalHost !== false,
     customPort: (body.customPort || '').toString(),
     target,
-    warpAccount,
   });
   return new Response(result.text, {
     status: 200,
